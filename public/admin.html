@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin Panel — Pace Car Rental</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<nav id="main-nav"></nav>
+
+<div class="container">
+    <h1>Admin / Staff Panel</h1>
+    <p class="subtitle">Manage vehicles, bookings, maintenance and view reports.</p>
+
+    <div class="tabs">
+        <button class="active" onclick="showSection('reports')" id="tab-reports">Reports</button>
+        <button onclick="showSection('vehicles')" id="tab-vehicles">Vehicles</button>
+        <button onclick="showSection('bookings')" id="tab-bookings">Bookings</button>
+        <button onclick="showSection('maintenance')" id="tab-maintenance">Maintenance</button>
+        <button onclick="showSection('broadcast')" id="tab-broadcast">Announcements</button>
+    </div>
+
+    <!-- REPORTS -->
+    <section id="section-reports">
+        <div class="stat-grid" id="stat-grid"><p class="muted">Loading report...</p></div>
+        <h2>Top Booked Vehicles</h2>
+        <div class="card"><table><thead><tr><th>Vehicle</th><th>Times Booked</th></tr></thead>
+            <tbody id="top-vehicles-body"></tbody></table></div>
+    </section>
+
+    <!-- VEHICLES -->
+    <section id="section-vehicles" class="hidden">
+        <div class="card">
+            <h2 style="margin-top:0;">Add Vehicle</h2>
+            <form id="vehicle-form">
+                <label>Make</label><input type="text" id="v-make" required>
+                <label>Model</label><input type="text" id="v-model" required>
+                <label>Year</label><input type="number" id="v-year" required>
+                <label>Plate Number</label><input type="text" id="v-plate" required>
+                <label>Category</label>
+                <select id="v-category">
+                    <option value="sedan">Sedan</option>
+                    <option value="hatchback">Hatchback</option>
+                    <option value="bakkie">Bakkie / Pickup</option>
+                    <option value="suv">SUV</option>
+                </select>
+                <label>Daily Rate (R)</label><input type="number" step="0.01" id="v-rate" required>
+                <label>Image URL (optional)</label><input type="text" id="v-image">
+                <button class="btn" type="submit">Add Vehicle</button>
+                <div class="error-msg hidden" id="vehicle-error"></div>
+            </form>
+        </div>
+        <h2>All Vehicles</h2>
+        <div class="card">
+            <table>
+                <thead><tr><th>Vehicle</th><th>Plate</th><th>Rate/day</th><th>Status</th><th></th></tr></thead>
+                <tbody id="vehicles-body"><tr><td colspan="5" class="muted">Loading...</td></tr></tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- BOOKINGS -->
+    <section id="section-bookings" class="hidden">
+        <div class="card">
+            <table>
+                <thead><tr><th>Customer</th><th>Vehicle</th><th>Dates</th><th>Total</th><th>Status</th><th>Update</th></tr></thead>
+                <tbody id="admin-bookings-body"><tr><td colspan="6" class="muted">Loading...</td></tr></tbody>
+            </table>
+        </div>
+        <h2>Record a Return</h2>
+        <div class="card">
+            <form id="return-form">
+                <label>Booking ID</label><input type="number" id="r-booking-id" required>
+                <label>Return Date</label><input type="date" id="r-date" required>
+                <label>Condition Notes</label><textarea id="r-notes" rows="2"></textarea>
+                <label>Late Fee (R, optional)</label><input type="number" step="0.01" id="r-fee" value="0">
+                <button class="btn" type="submit">Record Return</button>
+                <div class="error-msg hidden" id="return-error"></div>
+                <div class="success-msg hidden" id="return-success"></div>
+            </form>
+        </div>
+    </section>
+
+    <!-- MAINTENANCE -->
+    <section id="section-maintenance" class="hidden">
+        <div class="card">
+            <h2 style="margin-top:0;">Schedule Maintenance</h2>
+            <form id="maintenance-form">
+                <label>Vehicle</label>
+                <select id="m-vehicle-id"></select>
+                <label>Description</label><input type="text" id="m-description" required>
+                <label>Start Date</label><input type="date" id="m-start" required>
+                <label>Estimated Cost (R)</label><input type="number" step="0.01" id="m-cost" value="0">
+                <button class="btn" type="submit">Schedule</button>
+                <div class="error-msg hidden" id="maintenance-error"></div>
+            </form>
+        </div>
+        <h2>Maintenance Records</h2>
+        <div class="card">
+            <table>
+                <thead><tr><th>Vehicle</th><th>Description</th><th>Start</th><th>Status</th><th></th></tr></thead>
+                <tbody id="maintenance-body"><tr><td colspan="5" class="muted">Loading...</td></tr></tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- BROADCAST -->
+    <section id="section-broadcast" class="hidden">
+        <div class="card" style="max-width:500px;">
+            <h2 style="margin-top:0;">Send Announcement to All Customers</h2>
+            <form id="broadcast-form">
+                <label>Message</label>
+                <textarea id="b-message" rows="3" required></textarea>
+                <button class="btn" type="submit">Send</button>
+                <div class="success-msg hidden" id="broadcast-success"></div>
+                <div class="error-msg hidden" id="broadcast-error"></div>
+            </form>
+        </div>
+    </section>
+</div>
+
+<script src="js/api.js"></script>
+<script src="js/admin.js"></script>
+</body>
+</html>

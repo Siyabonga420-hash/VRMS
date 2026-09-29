@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Bookings — Pace Car Rental</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<nav id="main-nav"></nav>
+
+<div class="container">
+    <h1>My Bookings</h1>
+    <p class="subtitle">Track your bookings, pay for pending ones, and see your notifications.</p>
+
+    <div class="card">
+        <table>
+            <thead>
+                <tr><th>Vehicle</th><th>Dates</th><th>Total</th><th>Status</th><th></th></tr>
+            </thead>
+            <tbody id="bookings-body">
+                <tr><td colspan="5" class="muted">Loading...</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <h2>Notifications</h2>
+    <div class="card" id="notifications-box">
+        <p class="muted">Loading...</p>
+    </div>
+</div>
+
+<script src="js/api.js"></script>
+<script src="js/bookings.js"></script>
+</body>
+</html>
