@@ -5,7 +5,8 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node server.js"
+    "dev": "node server.js",
+    "init-db": "node db.js init"
   },
   "dependencies": {
     "express": "^4.19.2",
@@ -13,7 +14,8 @@
     "bcryptjs": "^2.4.3",
     "jsonwebtoken": "^9.0.2",
     "dotenv": "^16.4.5",
-    "cors": "^2.8.5"
+    "cors": "^2.8.5",
+    "cookie-parser": "^1.4.6"
   },
   "engines": {
     "node": ">=18.0.0"
