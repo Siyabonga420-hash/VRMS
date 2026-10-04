@@ -43,7 +43,7 @@
             <form id="vehicle-form">
                 <label>Make</label><input type="text" id="v-make" required>
                 <label>Model</label><input type="text" id="v-model" required>
-                <label>Year</label><input type="number" id="v-year" required>
+                <label>Year</label><input type="number" id="v-year" min="1990" max="2100" step="1" required>
                 <label>Plate Number</label><input type="text" id="v-plate" required>
                 <label>Category</label>
                 <select id="v-category">
@@ -52,7 +52,7 @@
                     <option value="bakkie">Bakkie / Pickup</option>
                     <option value="suv">SUV</option>
                 </select>
-                <label>Daily Rate (R)</label><input type="number" step="0.01" id="v-rate" required>
+                <label>Daily Rate (R)</label><input type="number" step="0.01" min="0.01" id="v-rate" required>
                 <label>Image URL (optional)</label><input type="text" id="v-image">
                 <button class="btn" type="submit">Add Vehicle</button>
                 <div class="error-msg hidden" id="vehicle-error"></div>
@@ -81,7 +81,7 @@
                 <label>Booking ID</label><input type="number" id="r-booking-id" required>
                 <label>Return Date</label><input type="date" id="r-date" required>
                 <label>Condition Notes</label><textarea id="r-notes" rows="2"></textarea>
-                <label>Late Fee (R, optional)</label><input type="number" step="0.01" id="r-fee" value="0">
+                <label>Late Fee (R, optional)</label><input type="number" step="0.01" min="0" id="r-fee" value="0">
                 <button class="btn" type="submit">Record Return</button>
                 <div class="error-msg hidden" id="return-error"></div>
                 <div class="success-msg hidden" id="return-success"></div>
@@ -98,7 +98,7 @@
                 <select id="m-vehicle-id"></select>
                 <label>Description</label><input type="text" id="m-description" required>
                 <label>Start Date</label><input type="date" id="m-start" required>
-                <label>Estimated Cost (R)</label><input type="number" step="0.01" id="m-cost" value="0">
+                <label>Estimated Cost (R)</label><input type="number" step="0.01" min="0" id="m-cost" value="0">
                 <button class="btn" type="submit">Schedule</button>
                 <div class="error-msg hidden" id="maintenance-error"></div>
             </form>

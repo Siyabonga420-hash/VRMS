@@ -1,10 +1,18 @@
-// public/js/auth.js
+// public/js/auth.js  (used by login.html)
 renderNav();
 
-// If someone who's already logged in lands here, send them straight
-// to a useful page instead of showing the login form again.
+// Where to go after logging in / registering:
+// - if they clicked "Book Now" before logging in, go back to the cars
+//   (the booking window reopens automatically)
+// - staff/admin go to the admin panel, everyone else to the car list
+function afterLoginUrl(user) {
+    if (sessionStorage.getItem('vrms_pending_vehicle')) return 'index.html';
+    return user.role === 'customer' ? 'index.html' : 'admin.html';
+}
+
+// Already logged in? No need to see the form.
 if (getUser()) {
-    window.location.href = getUser().role === 'customer' ? 'vehicles.html' : 'admin.html';
+    window.location.href = afterLoginUrl(getUser());
 }
 
 function showTab(which) {
@@ -13,6 +21,8 @@ function showTab(which) {
     document.getElementById('login-form').classList.toggle('hidden', which !== 'login');
     document.getElementById('register-form').classList.toggle('hidden', which !== 'register');
 }
+
+if (window.location.hash === '#register') showTab('register');
 
 document.getElementById('login-form').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -27,7 +37,7 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
             })
         });
         saveSession(data.token, data.user);
-        window.location.href = data.user.role === 'customer' ? 'vehicles.html' : 'admin.html';
+        window.location.href = afterLoginUrl(data.user);
     } catch (err) {
         errorBox.textContent = err.message;
         errorBox.classList.remove('hidden');
@@ -49,13 +59,9 @@ document.getElementById('register-form').addEventListener('submit', async (e) =>
             })
         });
         saveSession(data.token, data.user);
-        window.location.href = 'vehicles.html';
+        window.location.href = 'index.html';
     } catch (err) {
         errorBox.textContent = err.message;
         errorBox.classList.remove('hidden');
     }
 });
-
-// If the page loaded with #login-... or the register tab was requested
-// via the nav link's #login hash, nothing extra is needed -- the form
-// is already visible by default.

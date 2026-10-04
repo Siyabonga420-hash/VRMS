@@ -11,6 +11,7 @@ async function loadVehicles() {
         const query = category ? `?category=${encodeURIComponent(category)}` : '';
         currentVehicles = await apiFetch('/vehicles' + query);
         renderVehicles();
+        resumePendingBooking();
     } catch (err) {
         grid.innerHTML = `<p class="error-msg">${err.message}</p>`;
     }
@@ -35,7 +36,9 @@ function renderVehicles() {
 
 function openBookingModal(vehicleId) {
     if (!getUser()) {
-        window.location.href = 'index.html#login';
+        // remember which car they wanted, so we can reopen it after login
+        sessionStorage.setItem('vrms_pending_vehicle', String(vehicleId));
+        window.location.href = 'login.html';
         return;
     }
     selectedVehicle = currentVehicles.find(v => v.id === vehicleId);
@@ -45,6 +48,16 @@ function openBookingModal(vehicleId) {
     document.getElementById('booking-estimate').textContent = '';
     document.getElementById('booking-error').classList.add('hidden');
     document.getElementById('booking-modal').classList.remove('hidden');
+}
+
+// After login, reopen the booking window for the car the visitor clicked.
+function resumePendingBooking() {
+    const pending = sessionStorage.getItem('vrms_pending_vehicle');
+    if (!pending || !getUser()) return;
+    sessionStorage.removeItem('vrms_pending_vehicle');
+    if (currentVehicles.some(c => c.id === Number(pending))) {
+        openBookingModal(Number(pending));
+    }
 }
 
 function closeModal() {

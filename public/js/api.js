@@ -57,7 +57,7 @@ function renderNav(activePage) {
     const nav = document.getElementById('main-nav');
     if (!nav) return;
 
-    let links = `<a href="index.html">Home</a><a href="vehicles.html">Browse Vehicles</a>`;
+    let links = `<a href="index.html">Browse Vehicles</a>`;
     if (user) {
         links += `<a href="my-bookings.html">My Bookings</a>`;
         if (user.role === 'staff' || user.role === 'admin') {
@@ -66,7 +66,7 @@ function renderNav(activePage) {
         links += `<span class="nav-user">Hi, ${user.full_name.split(' ')[0]}</span>`;
         links += `<button onclick="logout()">Log out</button>`;
     } else {
-        links += `<a href="index.html#login">Log in / Register</a>`;
+        links += `<a href="login.html">Log in / Register</a>`;
     }
 
     nav.innerHTML = `
@@ -84,7 +84,7 @@ function logout() {
 function requirePageAuth(allowedRoles = null) {
     const user = getUser();
     if (!user) {
-        window.location.href = 'index.html#login';
+        window.location.href = 'login.html';
         return null;
     }
     if (allowedRoles && !allowedRoles.includes(user.role)) {

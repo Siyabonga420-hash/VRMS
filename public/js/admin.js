@@ -57,6 +57,18 @@ document.getElementById('vehicle-form').addEventListener('submit', async (e) => 
     e.preventDefault();
     const errorBox = document.getElementById('vehicle-error');
     errorBox.classList.add('hidden');
+    const rate = Number(document.getElementById('v-rate').value);
+    const year = Number(document.getElementById('v-year').value);
+    if (!(rate > 0)) {
+        errorBox.textContent = 'Daily rate must be greater than R0.';
+        errorBox.classList.remove('hidden');
+        return;
+    }
+    if (!Number.isInteger(year) || year < 1990 || year > 2100) {
+        errorBox.textContent = 'Please enter a valid year (1990 or later).';
+        errorBox.classList.remove('hidden');
+        return;
+    }
     try {
         await apiFetch('/vehicles', {
             method: 'POST',
