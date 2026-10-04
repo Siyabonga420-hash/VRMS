@@ -359,3 +359,103 @@ tbody tr:last-child td { border-bottom: none; }
     .container { padding: 24px 14px 48px; }
     .tabs button { padding: 9px 12px; font-size: 0.9rem; }
 }
+
+/* =====================================================================
+   GLASS THEME — translucent cards that blend with the slideshow.
+   Everything below overrides the white-card styles above.
+   ===================================================================== */
+:root {
+    --border: rgba(255, 255, 255, 0.18);
+    --muted: #b9c6dc;
+    --danger: #ff8d7e;
+    --success: #7ee6a0;
+}
+
+.card,
+.stat-box {
+    background: rgba(14, 26, 52, 0.48);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(16px) saturate(140%);
+    -webkit-backdrop-filter: blur(16px) saturate(140%);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+    color: var(--on-dark);
+}
+.stat-box { border-top: 3px solid var(--accent); }
+.stat-box .value { color: #fff; text-shadow: 0 2px 8px rgba(0,0,0,0.4); }
+.stat-box .label { color: var(--on-dark-soft); }
+
+/* text inside cards */
+.card p, .card li, .card div { color: var(--on-dark); }
+.card h2, .card h3, .modal h2 { color: #fff; text-shadow: none; }
+.muted, .card .muted { color: var(--on-dark-soft); }
+.card .error-msg, .error-msg { color: #ff9d90; }
+.card .success-msg, .success-msg { color: #8df0ae; }
+
+/* forms */
+label { color: var(--on-dark-soft); }
+input, select, textarea {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.28);
+    color: #fff;
+    color-scheme: dark;
+}
+input::placeholder, textarea::placeholder { color: rgba(255, 255, 255, 0.5); }
+input:focus, select:focus, textarea:focus {
+    background: rgba(255, 255, 255, 0.16);
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(242, 169, 0, 0.28);
+}
+select option { background: #13223f; color: #fff; }
+
+/* stop Chrome's pale-blue autofill from breaking the glass look */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+    -webkit-text-fill-color: #fff;
+    caret-color: #fff;
+    -webkit-box-shadow: 0 0 0 1000px rgba(30, 50, 90, 0.9) inset;
+    transition: background-color 9999s ease-in-out 0s;
+}
+
+/* buttons */
+button.btn { background: linear-gradient(135deg, #2a6bc4, #1a4d8f); }
+button.btn:hover { background: linear-gradient(135deg, #3a7ad6, #1f5aa8); box-shadow: 0 4px 16px rgba(42,107,196,0.5); }
+button.btn.secondary { background: rgba(255, 255, 255, 0.18); border: 1px solid rgba(255,255,255,0.3); }
+button.btn.secondary:hover { background: rgba(255, 255, 255, 0.28); }
+button.btn.danger { background: linear-gradient(135deg, #d9503f, #b53a2c); }
+
+/* tabs inside cards (login / register) */
+.card .tabs { border-bottom: 1px solid rgba(255, 255, 255, 0.22); }
+.card .tabs button { color: var(--on-dark-soft); text-shadow: none; }
+.card .tabs button:hover { background: rgba(255, 255, 255, 0.1); color: #fff; }
+.card .tabs button.active { color: var(--accent-soft); border-bottom-color: var(--accent); background: none; }
+
+/* tables */
+th { color: var(--on-dark-soft); }
+th, td { border-bottom: 1px solid rgba(255, 255, 255, 0.14); color: #fff; }
+tbody tr:hover { background: rgba(255, 255, 255, 0.07); }
+td a, .card a { color: var(--accent-soft); }
+
+/* badges: translucent so they sit nicely on glass */
+.badge.pending     { background: rgba(255, 193, 7, 0.22);  color: #ffd866; }
+.badge.confirmed,
+.badge.available   { background: rgba(46, 204, 113, 0.22); color: #8df0ae; }
+.badge.active      { background: rgba(80, 160, 255, 0.25); color: #a9d0ff; }
+.badge.completed   { background: rgba(255, 255, 255, 0.16); color: #d5deec; }
+.badge.cancelled,
+.badge.retired     { background: rgba(255, 99, 80, 0.25);  color: #ffaa9f; }
+.badge.maintenance { background: rgba(255, 193, 7, 0.22);  color: #ffd866; }
+
+/* vehicle cards */
+.vehicle-card .price { color: var(--accent-soft); }
+.vehicle-card .category { background: rgba(255, 255, 255, 0.16); color: #fff; }
+.vehicle-card img { background: rgba(255,255,255,0.1); }
+
+/* booking modal */
+.modal {
+    background: rgba(14, 26, 52, 0.78);
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    color: #fff;
+}
