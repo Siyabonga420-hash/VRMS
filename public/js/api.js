@@ -63,7 +63,7 @@ function renderNav(activePage) {
         if (user.role === 'staff' || user.role === 'admin') {
             links += `<a href="admin.html">Admin Panel</a>`;
         }
-        links += `<span class="muted" style="color:white">Hi, ${user.full_name.split(' ')[0]}</span>`;
+        links += `<span class="nav-user">Hi, ${user.full_name.split(' ')[0]}</span>`;
         links += `<button onclick="logout()">Log out</button>`;
     } else {
         links += `<a href="index.html#login">Log in / Register</a>`;
