@@ -1,5 +1,5 @@
 // public/js/vehicles.js
-renderNav('vehicles');
+
 
 const MIN_AGE = 21;
 let currentVehicles = [];
