@@ -44,6 +44,22 @@
             <label>End Date</label>
             <input type="date" id="booking-end" required>
             <p class="muted" id="booking-estimate"></p>
+
+            <h3>Driver details</h3>
+            <p class="muted">Required before we can release a car. Bring the originals when you collect it.</p>
+            <label>Date of birth</label>
+            <input type="date" id="d-dob" required>
+            <label>ID / passport number</label>
+            <input type="text" id="d-id" required minlength="5" maxlength="30">
+            <label>Driver's licence number</label>
+            <input type="text" id="d-licence" required minlength="5" maxlength="30">
+            <label>Licence expiry date</label>
+            <input type="date" id="d-licence-expiry" required>
+
+            <label class="check">
+                <input type="checkbox" id="booking-terms" required>
+                <span>I am at least 21, hold a valid licence, and accept the rental terms: return the car with the same fuel level, I am responsible for damage and fines, and late returns are charged a late fee.</span>
+            </label>
             <button class="btn" type="submit">Confirm Booking</button>
             <button class="btn secondary" type="button" onclick="closeModal()">Cancel</button>
             <div class="error-msg hidden" id="booking-error"></div>

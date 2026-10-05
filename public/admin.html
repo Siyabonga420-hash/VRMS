@@ -71,14 +71,15 @@
     <section id="section-bookings" class="hidden">
         <div class="card">
             <table>
-                <thead><tr><th>Customer</th><th>Vehicle</th><th>Dates</th><th>Total</th><th>Status</th><th>Update</th></tr></thead>
-                <tbody id="admin-bookings-body"><tr><td colspan="6" class="muted">Loading...</td></tr></tbody>
+                <thead><tr><th>Customer</th><th>Vehicle</th><th>Dates</th><th>Total</th><th>Status</th><th>Pickup</th><th>Update</th></tr></thead>
+                <tbody id="admin-bookings-body"><tr><td colspan="7" class="muted">Loading...</td></tr></tbody>
             </table>
         </div>
         <h2>Record a Return</h2>
         <div class="card">
             <form id="return-form">
                 <label>Booking ID</label><input type="number" id="r-booking-id" required>
+                <p class="muted" id="r-handover-info"></p>
                 <label>Return Date</label><input type="date" id="r-date" required>
                 <label>Condition Notes</label><textarea id="r-notes" rows="2"></textarea>
                 <label>Late Fee (R, optional)</label><input type="number" step="0.01" min="0" id="r-fee" value="0">
@@ -125,6 +126,40 @@
             </form>
         </div>
     </section>
+</div>
+
+<!-- Hand-over checklist modal -->
+<div class="modal-backdrop hidden" id="handover-modal">
+    <div class="modal">
+        <h2>Hand over car</h2>
+        <p class="muted" id="handover-summary"></p>
+        <form id="handover-form">
+            <label class="check"><input type="checkbox" id="h-licence" required>
+                <span>I have seen the original <strong>driver's licence</strong>, it matches the details above and is valid for the whole rental.</span></label>
+            <label class="check"><input type="checkbox" id="h-id" required>
+                <span>I have seen the original <strong>ID / passport</strong> and it matches the driver.</span></label>
+            <label class="check"><input type="checkbox" id="h-deposit" required>
+                <span>The <strong>R1,000 refundable deposit</strong> has been received.</span></label>
+
+            <label>Fuel level</label>
+            <select id="h-fuel" required>
+                <option value="">Select...</option>
+                <option value="full">Full</option>
+                <option value="3/4">3/4</option>
+                <option value="1/2">1/2</option>
+                <option value="1/4">1/4</option>
+                <option value="empty">Empty</option>
+            </select>
+            <label>Mileage (km)</label>
+            <input type="number" id="h-mileage" min="0" step="1" required>
+            <label>Existing damage / notes</label>
+            <textarea id="h-notes" rows="2" placeholder="e.g. small scratch on rear bumper"></textarea>
+
+            <button class="btn" type="submit">Confirm hand-over</button>
+            <button class="btn secondary" type="button" onclick="closeHandover()">Cancel</button>
+            <div class="error-msg hidden" id="handover-error"></div>
+        </form>
+    </div>
 </div>
 
 <script src="js/api.js"></script>

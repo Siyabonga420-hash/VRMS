@@ -10,6 +10,7 @@ async function loadBookings() {
             body.innerHTML = `<tr><td colspan="5" class="muted">You have no bookings yet. <a href="vehicles.html">Browse vehicles</a>.</td></tr>`;
             return;
         }
+        showPickupReminder(bookings);
         body.innerHTML = bookings.map(b => `
             <tr>
                 <td>${b.make} ${b.model}</td>
@@ -24,6 +25,23 @@ async function loadBookings() {
     } catch (err) {
         body.innerHTML = `<tr><td colspan="5" class="error-msg">${err.message}</td></tr>`;
     }
+}
+
+// Reminder of what to bring when a confirmed booking is ready for collection.
+function showPickupReminder(bookings) {
+    const box = document.getElementById('pickup-box');
+    const ready = bookings.filter(b => b.status === 'confirmed' && !b.handed_over);
+    if (ready.length === 0) { box.classList.add('hidden'); return; }
+    box.innerHTML = `
+        <h2 style="margin-top:0;">Collecting your car</h2>
+        <p>Your payment is confirmed. Please bring these to the branch on your start date:</p>
+        <ul>
+            <li>Your <strong>original driver's licence</strong> (must be valid until the end of your rental)</li>
+            <li>Your <strong>ID or passport</strong></li>
+            <li>A <strong>refundable deposit of R1,000</strong>, paid at collection</li>
+        </ul>
+        <p class="muted">Our staff will check the car's fuel, mileage and condition with you before handing over the keys.</p>`;
+    box.classList.remove('hidden');
 }
 
 async function payForBooking(bookingId) {

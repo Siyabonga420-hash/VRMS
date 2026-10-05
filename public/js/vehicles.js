@@ -1,6 +1,7 @@
 // public/js/vehicles.js
 renderNav('vehicles');
 
+const MIN_AGE = 21;
 let currentVehicles = [];
 let selectedVehicle = null;
 
@@ -34,7 +35,7 @@ function renderVehicles() {
     `).join('');
 }
 
-function openBookingModal(vehicleId) {
+async function openBookingModal(vehicleId) {
     if (!getUser()) {
         // remember which car they wanted, so we can reopen it after login
         sessionStorage.setItem('vrms_pending_vehicle', String(vehicleId));
@@ -43,11 +44,34 @@ function openBookingModal(vehicleId) {
     }
     selectedVehicle = currentVehicles.find(v => v.id === vehicleId);
     document.getElementById('booking-vehicle-name').textContent = `Book ${selectedVehicle.make} ${selectedVehicle.model}`;
-    document.getElementById('booking-start').value = '';
-    document.getElementById('booking-end').value = '';
+    const today = new Date().toISOString().slice(0, 10);
+    ['booking-start', 'booking-end'].forEach(id => {
+        const el = document.getElementById(id);
+        el.value = '';
+        el.min = today;
+    });
+    document.getElementById('booking-terms').checked = false;
     document.getElementById('booking-estimate').textContent = '';
     document.getElementById('booking-error').classList.add('hidden');
     document.getElementById('booking-modal').classList.remove('hidden');
+
+    // prefill driver details if we already have them on file
+    try {
+        const p = await apiFetch('/auth/profile');
+        document.getElementById('d-dob').value = p.date_of_birth || '';
+        document.getElementById('d-id').value = p.id_number || '';
+        document.getElementById('d-licence').value = p.licence_number || '';
+        document.getElementById('d-licence-expiry').value = p.licence_expiry || '';
+    } catch (err) { /* leave blank; the customer can type them in */ }
+}
+
+// Age in whole years on a given date ('YYYY-MM-DD' strings)
+function ageOn(dobStr, onStr) {
+    const d = new Date(dobStr), o = new Date(onStr);
+    let age = o.getUTCFullYear() - d.getUTCFullYear();
+    const m = o.getUTCMonth() - d.getUTCMonth();
+    if (m < 0 || (m === 0 && o.getUTCDate() < d.getUTCDate())) age--;
+    return age;
 }
 
 // After login, reopen the booking window for the car the visitor clicked.
@@ -86,20 +110,41 @@ document.getElementById('booking-form').addEventListener('submit', async (e) => 
     e.preventDefault();
     const errorBox = document.getElementById('booking-error');
     errorBox.classList.add('hidden');
+    const fail = (msg) => { errorBox.textContent = msg; errorBox.classList.remove('hidden'); };
+
+    const start = document.getElementById('booking-start').value;
+    const end = document.getElementById('booking-end').value;
+    const dob = document.getElementById('d-dob').value;
+    const licenceExpiry = document.getElementById('d-licence-expiry').value;
+
+    if (end <= start) return fail('End date must be after the start date.');
+    if (ageOn(dob, start) < MIN_AGE) return fail(`Drivers must be at least ${MIN_AGE} years old to rent a vehicle.`);
+    if (licenceExpiry < end) return fail("Your driver's licence expires before the end of this rental.");
+    if (!document.getElementById('booking-terms').checked) return fail('Please accept the rental terms.');
+
     try {
+        await apiFetch('/auth/profile', {
+            method: 'PUT',
+            body: JSON.stringify({
+                date_of_birth: dob,
+                id_number: document.getElementById('d-id').value,
+                licence_number: document.getElementById('d-licence').value,
+                licence_expiry: licenceExpiry
+            })
+        });
         await apiFetch('/bookings', {
             method: 'POST',
             body: JSON.stringify({
                 vehicle_id: selectedVehicle.id,
-                start_date: document.getElementById('booking-start').value,
-                end_date: document.getElementById('booking-end').value
+                start_date: start,
+                end_date: end,
+                terms_accepted: true
             })
         });
         closeModal();
         window.location.href = 'my-bookings.html';
     } catch (err) {
-        errorBox.textContent = err.message;
-        errorBox.classList.remove('hidden');
+        fail(err.message);
     }
 });
 

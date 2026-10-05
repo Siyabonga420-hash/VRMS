@@ -101,31 +101,105 @@ async function deleteVehicle(id) {
 }
 
 // ---------- BOOKINGS ----------
+let adminBookings = [];
+const DEPOSIT_TEXT = 'R1,000';
+
+// escape text that came from customers before putting it in HTML
+function esc(s) {
+    return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function pickupCell(b) {
+    if (b.handed_over) return '<span class="badge active">Handed over</span>';
+    if (b.status === 'confirmed') return `<button class="btn small" onclick="openHandover(${b.id})">Hand over car</button>`;
+    if (b.status === 'pending') return '<span class="muted">Awaiting payment</span>';
+    return '';
+}
+
 async function loadBookingsAdmin() {
     try {
-        const bookings = await apiFetch('/bookings');
-        document.getElementById('admin-bookings-body').innerHTML = bookings.map(b => `
+        adminBookings = await apiFetch('/bookings');
+        document.getElementById('admin-bookings-body').innerHTML = adminBookings.map(b => `
             <tr>
-                <td>${b.customer_name}</td>
+                <td>${esc(b.customer_name)}</td>
                 <td>${b.make} ${b.model}</td>
                 <td>${formatDate(b.start_date)} → ${formatDate(b.end_date)}</td>
                 <td>${formatCurrency(b.total_amount)}</td>
                 <td><span class="badge ${b.status}">${b.status}</span></td>
+                <td>${pickupCell(b)}</td>
                 <td>
                     <select onchange="updateBookingStatus(${b.id}, this.value)">
                         <option value="">Change...</option>
                         <option value="confirmed">Confirmed</option>
-                        <option value="active">Active</option>
                         <option value="completed">Completed</option>
                         <option value="cancelled">Cancelled</option>
                     </select>
                 </td>
             </tr>
-        `).join('') || '<tr><td colspan="6" class="muted">No bookings yet.</td></tr>';
+        `).join('') || '<tr><td colspan="7" class="muted">No bookings yet.</td></tr>';
     } catch (err) {
-        document.getElementById('admin-bookings-body').innerHTML = `<tr><td colspan="6" class="error-msg">${err.message}</td></tr>`;
+        document.getElementById('admin-bookings-body').innerHTML = `<tr><td colspan="7" class="error-msg">${err.message}</td></tr>`;
     }
 }
+
+// ---------- HAND-OVER CHECKLIST ----------
+let handoverBooking = null;
+
+function openHandover(id) {
+    handoverBooking = adminBookings.find(b => b.id === id);
+    if (!handoverBooking) return;
+    const b = handoverBooking;
+    document.getElementById('handover-summary').innerHTML = `
+        <strong>${esc(b.customer_name)}</strong> collecting <strong>${b.make} ${b.model}</strong> (${esc(b.plate_number)})<br>
+        ID / passport: ${esc(b.id_number || 'not provided')}<br>
+        Licence no.: ${esc(b.licence_number || 'not provided')}, expires ${b.licence_expiry ? formatDate(b.licence_expiry) : 'unknown'}<br>
+        Date of birth: ${b.date_of_birth ? formatDate(b.date_of_birth) : 'unknown'}<br>
+        Rental ends: ${formatDate(b.end_date)}`;
+    document.getElementById('handover-form').reset();
+    document.getElementById('handover-error').classList.add('hidden');
+    document.getElementById('handover-modal').classList.remove('hidden');
+}
+
+function closeHandover() {
+    document.getElementById('handover-modal').classList.add('hidden');
+}
+
+document.getElementById('handover-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const errorBox = document.getElementById('handover-error');
+    errorBox.classList.add('hidden');
+    try {
+        await apiFetch(`/bookings/${handoverBooking.id}/handover`, {
+            method: 'POST',
+            body: JSON.stringify({
+                licence_checked: document.getElementById('h-licence').checked,
+                id_checked: document.getElementById('h-id').checked,
+                deposit_received: document.getElementById('h-deposit').checked,
+                fuel_level: document.getElementById('h-fuel').value,
+                mileage: Number(document.getElementById('h-mileage').value),
+                damage_notes: document.getElementById('h-notes').value
+            })
+        });
+        closeHandover();
+        loadBookingsAdmin();
+    } catch (err) {
+        errorBox.textContent = err.message;
+        errorBox.classList.remove('hidden');
+    }
+});
+
+// Show the condition recorded at pickup when staff record a return
+document.getElementById('r-booking-id').addEventListener('change', async (e) => {
+    const info = document.getElementById('r-handover-info');
+    info.textContent = '';
+    if (!e.target.value) return;
+    try {
+        const h = await apiFetch(`/bookings/${e.target.value}/handover`);
+        info.textContent = `At pickup: fuel ${h.fuel_level}, ${h.mileage} km, notes: ${h.damage_notes || 'none'}.`;
+    } catch (err) {
+        info.textContent = err.message;
+    }
+});
 
 async function updateBookingStatus(bookingId, status) {
     if (!status) return;

@@ -459,3 +459,16 @@ td a, .card a { color: var(--accent-soft); }
     -webkit-backdrop-filter: blur(20px);
     color: #fff;
 }
+
+
+/* ===== Booking / hand-over forms ===== */
+.modal { max-height: 90vh; overflow-y: auto; }
+.modal h3 { margin: 18px 0 2px; color: #fff; font-size: 1.05rem; }
+input[type="checkbox"] { width: auto; margin: 3px 0 0; flex-shrink: 0; accent-color: var(--accent); }
+label.check {
+    display: flex; align-items: flex-start; gap: 10px;
+    font-weight: 400; font-size: 0.9rem; line-height: 1.4;
+    color: var(--on-dark); margin-top: 14px;
+}
+#pickup-box ul { margin: 8px 0 12px 18px; padding: 0; }
+#pickup-box li { margin-bottom: 6px; }
