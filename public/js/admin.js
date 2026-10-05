@@ -188,17 +188,49 @@ document.getElementById('handover-form').addEventListener('submit', async (e) =>
     }
 });
 
+// ---------- RETURN: pickup condition + deposit settlement ----------
+let returnHandover = null;
+
+const money = (n) => 'R' + Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+function returnDeductions() {
+    return ['r-damage', 'r-fuelcharge', 'r-other', 'r-fee']
+        .reduce((sum, id) => sum + Number(document.getElementById(id).value || 0), 0);
+}
+
+function updateRefundSummary() {
+    const box = document.getElementById('r-refund-summary');
+    const line = document.getElementById('r-deposit-line');
+    if (!returnHandover) {
+        line.textContent = 'No deposit on record for this booking (nothing to refund).';
+        box.textContent = '';
+        return;
+    }
+    const deposit = Number(returnHandover.deposit_amount);
+    const total = returnDeductions();
+    line.textContent = `Deposit held: ${money(deposit)}`;
+    const refund = Math.max(0, deposit - total);
+    const shortfall = Math.max(0, total - deposit);
+    box.textContent = `Deposit ${money(deposit)} − charges ${money(total)} = REFUND ${money(refund)}` +
+        (shortfall > 0 ? `  (customer still owes ${money(shortfall)})` : '');
+}
+
+['r-damage', 'r-fuelcharge', 'r-other', 'r-fee'].forEach(id =>
+    document.getElementById(id).addEventListener('input', updateRefundSummary));
+
 // Show the condition recorded at pickup when staff record a return
 document.getElementById('r-booking-id').addEventListener('change', async (e) => {
     const info = document.getElementById('r-handover-info');
     info.textContent = '';
-    if (!e.target.value) return;
+    returnHandover = null;
+    if (!e.target.value) { updateRefundSummary(); return; }
     try {
-        const h = await apiFetch(`/bookings/${e.target.value}/handover`);
-        info.textContent = `At pickup: fuel ${h.fuel_level}, ${h.mileage} km, notes: ${h.damage_notes || 'none'}.`;
+        returnHandover = await apiFetch(`/bookings/${e.target.value}/handover`);
+        info.textContent = `At pickup: fuel ${returnHandover.fuel_level}, ${returnHandover.mileage} km, notes: ${returnHandover.damage_notes || 'none'}.`;
     } catch (err) {
         info.textContent = err.message;
     }
+    updateRefundSummary();
 });
 
 async function updateBookingStatus(bookingId, status) {
@@ -221,6 +253,21 @@ document.getElementById('return-form').addEventListener('submit', async (e) => {
     errorBox.classList.add('hidden');
     successBox.classList.add('hidden');
     try {
+        // 1) work out the deposit refund first (can be repeated safely if step 2 fails)
+        let settlement = null;
+        if (returnHandover) {
+            settlement = await apiFetch(`/bookings/${document.getElementById('r-booking-id').value}/deposit-settlement`, {
+                method: 'POST',
+                body: JSON.stringify({
+                    damage_charge: Number(document.getElementById('r-damage').value || 0),
+                    fuel_charge: Number(document.getElementById('r-fuelcharge').value || 0),
+                    other_charge: Number(document.getElementById('r-other').value || 0),
+                    late_fee: Number(document.getElementById('r-fee').value || 0),
+                    deduction_notes: document.getElementById('r-deduction-notes').value
+                })
+            });
+        }
+        // 2) record the return itself
         await apiFetch('/returns', {
             method: 'POST',
             body: JSON.stringify({
@@ -230,9 +277,15 @@ document.getElementById('return-form').addEventListener('submit', async (e) => {
                 late_fee: Number(document.getElementById('r-fee').value || 0)
             })
         });
-        successBox.textContent = 'Return recorded.';
+        successBox.textContent = settlement
+            ? `Return recorded. Refund the customer ${money(settlement.refund)} of their ${money(settlement.deposit)} deposit` +
+              (settlement.shortfall > 0 ? ` (they still owe ${money(settlement.shortfall)}).` : '.')
+            : 'Return recorded.';
         successBox.classList.remove('hidden');
         e.target.reset();
+        returnHandover = null;
+        document.getElementById('r-handover-info').textContent = '';
+        updateRefundSummary();
         loadBookingsAdmin();
     } catch (err) {
         errorBox.textContent = err.message;

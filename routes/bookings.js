@@ -226,6 +226,60 @@ router.get('/:id/handover', requireAuth, async (req, res) => {
     }
 });
 
+// POST /api/bookings/:id/deposit-settlement  (staff/admin)
+// Works out how much of the deposit goes back to the customer after the return.
+// Safe to call again: a later call simply overwrites the earlier figures.
+router.post('/:id/deposit-settlement', requireAuth, requireRole('staff', 'admin'), async (req, res) => {
+    const clean = (v) => {
+        const n = Number(v || 0);
+        return Number.isFinite(n) && n >= 0 && n <= 1000000 ? Math.round(n * 100) / 100 : null;
+    };
+    const damage = clean(req.body.damage_charge);
+    const fuel = clean(req.body.fuel_charge);
+    const other = clean(req.body.other_charge);
+    const lateFee = clean(req.body.late_fee);
+    if ([damage, fuel, other, lateFee].includes(null)) {
+        return res.status(400).json({ error: 'Charges must be numbers, 0 or more.' });
+    }
+    const notes = String(req.body.deduction_notes || '').trim() || null;
+
+    try {
+        const hRes = await pool.query(
+            'SELECT h.*, b.customer_id FROM vehicle_handovers h JOIN bookings b ON b.id = h.booking_id WHERE h.booking_id = $1',
+            [req.params.id]
+        );
+        const h = hRes.rows[0];
+        if (!h) return res.status(404).json({ error: 'No hand-over (and so no deposit) is recorded for this booking.' });
+
+        const deposit = Number(h.deposit_amount);
+        const deductions = Math.round((damage + fuel + other + lateFee) * 100) / 100;
+        const refund = Math.max(0, Math.round((deposit - deductions) * 100) / 100);
+        const shortfall = Math.max(0, Math.round((deductions - deposit) * 100) / 100);
+
+        await pool.query(
+            `UPDATE vehicle_handovers
+             SET deposit_deductions = $1, deposit_deduction_notes = $2,
+                 deposit_refund = $3, deposit_shortfall = $4, deposit_settled_at = NOW()
+             WHERE booking_id = $5`,
+            [deductions, notes, refund, shortfall, req.params.id]
+        );
+
+        let msg = `Booking #${req.params.id}: your R${deposit.toFixed(2)} deposit is being refunded in full.`;
+        if (deductions > 0) {
+            msg = `Booking #${req.params.id}: R${deductions.toFixed(2)} was deducted from your R${deposit.toFixed(2)} deposit` +
+                  `${notes ? ' (' + notes + ')' : ''}. ` +
+                  (shortfall > 0 ? `The deductions exceed your deposit, so R${shortfall.toFixed(2)} is still owed.`
+                                 : `R${refund.toFixed(2)} will be refunded to you.`);
+        }
+        await pool.query(`INSERT INTO notifications (user_id, message, type) VALUES ($1, $2, 'payment')`, [h.customer_id, msg]);
+
+        res.json({ deposit, deductions, refund, shortfall });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Could not settle the deposit.' });
+    }
+});
+
 // PUT /api/bookings/:id/status  (staff/admin: confirm, cancel, complete...)
 // "active" is only reachable through the hand-over checklist above.
 router.put('/:id/status', requireAuth, requireRole('staff', 'admin'), async (req, res) => {

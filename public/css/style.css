@@ -472,3 +472,16 @@ label.check {
 }
 #pickup-box ul { margin: 8px 0 12px 18px; padding: 0; }
 #pickup-box li { margin-bottom: 6px; }
+
+/* clickable customer name in tables */
+button.linklike {
+    background: none; border: none; padding: 0; font: inherit; cursor: pointer;
+    color: var(--accent-soft); text-decoration: underline; text-underline-offset: 3px; text-align: left;
+}
+button.linklike:hover { color: #fff; }
+
+.refund-summary {
+    margin: 12px 0 0; padding: 10px 12px; border-radius: 8px; font-weight: 700;
+    background: rgba(242, 169, 0, 0.14); border: 1px solid rgba(242, 169, 0, 0.4); color: var(--accent-soft);
+}
+.refund-summary:empty { display: none; }
