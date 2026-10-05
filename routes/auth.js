@@ -3,7 +3,8 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const pool = require('../db');
-const { requireAuth } = require('../middleware/auth');
+const { requireAuth, requireRole } = require('../middleware/auth');
+const { validateIdentity } = require('../utils/idCheck');
 
 const router = express.Router();
 
@@ -92,7 +93,7 @@ router.get('/profile', requireAuth, async (req, res) => {
 // PUT /api/auth/profile
 router.put('/profile', requireAuth, async (req, res) => {
     const { date_of_birth, id_number, licence_number, licence_expiry } = req.body;
-    const idNo = String(id_number || '').trim();
+    const idNo = String(id_number || '').replace(/\s+/g, '').toUpperCase();
     const licNo = String(licence_number || '').trim();
 
     if (!isDate(date_of_birth) || new Date(date_of_birth) >= new Date()) {
@@ -100,6 +101,10 @@ router.put('/profile', requireAuth, async (req, res) => {
     }
     if (idNo.length < 5 || idNo.length > 30) {
         return res.status(400).json({ error: 'ID / passport number must be 5 to 30 characters.' });
+    }
+    const idProblem = validateIdentity(idNo, date_of_birth);
+    if (idProblem) {
+        return res.status(400).json({ error: idProblem });
     }
     if (licNo.length < 5 || licNo.length > 30) {
         return res.status(400).json({ error: "Driver's licence number must be 5 to 30 characters." });
@@ -118,6 +123,30 @@ router.put('/profile', requireAuth, async (req, res) => {
     } catch (err) {
         console.error(err);
         res.status(500).json({ error: 'Could not save your details.' });
+    }
+});
+
+// GET /api/auth/customers  (staff/admin only)
+// All customers with the driver details they submitted when booking.
+router.get('/customers', requireAuth, requireRole('staff', 'admin'), async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT u.id, u.full_name, u.email, u.phone,
+                    to_char(u.date_of_birth,  'YYYY-MM-DD') AS date_of_birth,
+                    u.id_number, u.licence_number,
+                    to_char(u.licence_expiry, 'YYYY-MM-DD') AS licence_expiry,
+                    to_char(u.created_at,     'YYYY-MM-DD') AS joined,
+                    COUNT(b.id)::int AS bookings
+             FROM users u
+             LEFT JOIN bookings b ON b.customer_id = u.id
+             WHERE u.role = 'customer'
+             GROUP BY u.id
+             ORDER BY u.created_at DESC`
+        );
+        res.json(result.rows);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Could not load customers.' });
     }
 });
 

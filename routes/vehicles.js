@@ -1,127 +1,180 @@
-// routes/vehicles.js
-const express = require('express');
-const pool = require('../db');
-const { requireAuth, requireRole } = require('../middleware/auth');
+// public/js/vehicles.js
+renderNav('vehicles');
 
-const router = express.Router();
+const MIN_AGE = 21;
+let currentVehicles = [];
+let selectedVehicle = null;
 
-const CATEGORIES = ['sedan', 'hatchback', 'bakkie', 'suv'];
-const MIN_YEAR = 1990;
-const MAX_YEAR = new Date().getFullYear() + 1;
+async function loadVehicles() {
+    const grid = document.getElementById('vehicle-grid');
+    const category = document.getElementById('category-filter').value;
+    try {
+        const query = category ? `?category=${encodeURIComponent(category)}` : '';
+        currentVehicles = await apiFetch('/vehicles' + query);
+        renderVehicles();
+        resumePendingBooking();
+    } catch (err) {
+        grid.innerHTML = `<p class="error-msg">${err.message}</p>`;
+    }
+}
 
-// Returns an error message if the values are bad, or null if they are fine.
-// For updates (PUT) fields are optional, so only provided ones are checked.
-function validateVehicle({ year, daily_rate, category }, { partial = false } = {}) {
-    if (!partial || daily_rate !== undefined && daily_rate !== null) {
-        const rate = Number(daily_rate);
-        if (!Number.isFinite(rate) || rate <= 0) {
-            return 'Daily rate must be a number greater than 0.';
+function renderVehicles() {
+    const grid = document.getElementById('vehicle-grid');
+    if (currentVehicles.length === 0) {
+        grid.innerHTML = '<p class="muted">No vehicles match that filter right now.</p>';
+        return;
+    }
+    grid.innerHTML = currentVehicles.map(v => `
+        <div class="card vehicle-card">
+            <img src="${v.image_url || 'https://via.placeholder.com/400x200?text=No+Image'}" alt="${v.make} ${v.model}">
+            <span class="category">${v.category}</span>
+            <h3>${v.make} ${v.model} (${v.year})</h3>
+            <p class="price">${formatCurrency(v.daily_rate)} / day</p>
+            <button class="btn" onclick="openBookingModal(${v.id})">Book Now</button>
+        </div>
+    `).join('');
+}
+
+async function openBookingModal(vehicleId) {
+    if (!getUser()) {
+        // remember which car they wanted, so we can reopen it after login
+        sessionStorage.setItem('vrms_pending_vehicle', String(vehicleId));
+        window.location.href = 'login.html';
+        return;
+    }
+    selectedVehicle = currentVehicles.find(v => v.id === vehicleId);
+    document.getElementById('booking-vehicle-name').textContent = `Book ${selectedVehicle.make} ${selectedVehicle.model}`;
+    const today = new Date().toISOString().slice(0, 10);
+    ['booking-start', 'booking-end'].forEach(id => {
+        const el = document.getElementById(id);
+        el.value = '';
+        el.min = today;
+    });
+    document.getElementById('booking-terms').checked = false;
+    document.getElementById('booking-estimate').textContent = '';
+    document.getElementById('booking-error').classList.add('hidden');
+    document.getElementById('booking-modal').classList.remove('hidden');
+
+    // prefill driver details if we already have them on file
+    try {
+        const p = await apiFetch('/auth/profile');
+        document.getElementById('d-dob').value = p.date_of_birth || '';
+        document.getElementById('d-id').value = p.id_number || '';
+        document.getElementById('d-licence').value = p.licence_number || '';
+        document.getElementById('d-licence-expiry').value = p.licence_expiry || '';
+    } catch (err) { /* leave blank; the customer can type them in */ }
+}
+
+// Age in whole years on a given date ('YYYY-MM-DD' strings)
+function ageOn(dobStr, onStr) {
+    const d = new Date(dobStr), o = new Date(onStr);
+    let age = o.getUTCFullYear() - d.getUTCFullYear();
+    const m = o.getUTCMonth() - d.getUTCMonth();
+    if (m < 0 || (m === 0 && o.getUTCDate() < d.getUTCDate())) age--;
+    return age;
+}
+
+// After login, reopen the booking window for the car the visitor clicked.
+function resumePendingBooking() {
+    const pending = sessionStorage.getItem('vrms_pending_vehicle');
+    if (!pending || !getUser()) return;
+    sessionStorage.removeItem('vrms_pending_vehicle');
+    if (currentVehicles.some(c => c.id === Number(pending))) {
+        openBookingModal(Number(pending));
+    }
+}
+
+// Same rules as the server: 13 digits = South African ID (must match the date of birth),
+// anything with letters = passport.
+function checkIdentity(idRaw, dobStr) {
+    const id = String(idRaw || '').replace(/\s+/g, '').toUpperCase();
+    if (/^\d+$/.test(id)) {
+        if (id.length !== 13) return 'A South African ID number must be exactly 13 digits. (For a passport, enter the passport number including its letters.)';
+        const yy = Number(id.slice(0, 2)), mm = Number(id.slice(2, 4)), dd = Number(id.slice(4, 6));
+        let year = 2000 + yy;
+        if (Date.UTC(year, mm - 1, dd) > Date.now()) year -= 100;
+        const d = new Date(Date.UTC(year, mm - 1, dd));
+        if (d.getUTCFullYear() !== year || d.getUTCMonth() !== mm - 1 || d.getUTCDate() !== dd) return 'That ID number contains an invalid birth date.';
+        if (id[10] !== '0' && id[10] !== '1') return 'That ID number is not valid. Please check it and try again.';
+        let sum = 0;
+        for (let i = 0; i < 13; i++) {
+            let n = Number(id[12 - i]);
+            if (i % 2 === 1) { n *= 2; if (n > 9) n -= 9; }
+            sum += n;
         }
+        if (sum % 10 !== 0) return 'That ID number is not valid (the check digit is wrong). Please check it and try again.';
+        const pad = (n) => String(n).padStart(2, '0');
+        if (dobStr !== `${year}-${pad(mm)}-${pad(dd)}`) return 'Your date of birth does not match your ID number.';
+        return null;
     }
-    if (!partial || year !== undefined && year !== null) {
-        const y = Number(year);
-        if (!Number.isInteger(y) || y < MIN_YEAR || y > MAX_YEAR) {
-            return `Year must be a whole number between ${MIN_YEAR} and ${MAX_YEAR}.`;
-        }
-    }
-    if (category !== undefined && category !== null && !CATEGORIES.includes(category)) {
-        return `Category must be one of: ${CATEGORIES.join(', ')}.`;
-    }
+    if (!/^[A-Z0-9]{6,20}$/.test(id)) return 'Enter a valid 13-digit ID number or a passport number (6 to 20 letters/numbers).';
     return null;
 }
 
-// GET /api/vehicles
-// Public. Anyone browsing the site can see the fleet, even logged out.
-// Optional ?category=sedan filter.
-router.get('/', async (req, res) => {
-    try {
-        const { category } = req.query;
-        const params = [];
-        let sql = "SELECT * FROM vehicles WHERE status = 'available'";
-        if (category) {
-            params.push(category);
-            sql += ` AND category = $${params.length}`;
+function closeModal() {
+    document.getElementById('booking-modal').classList.add('hidden');
+}
+
+function updateEstimate() {
+    const start = document.getElementById('booking-start').value;
+    const end = document.getElementById('booking-end').value;
+    const estimateBox = document.getElementById('booking-estimate');
+    if (start && end && selectedVehicle) {
+        const days = Math.ceil((new Date(end) - new Date(start)) / (1000 * 60 * 60 * 24));
+        if (days > 0) {
+            estimateBox.textContent = `${days} day(s) × ${formatCurrency(selectedVehicle.daily_rate)} = ${formatCurrency(days * selectedVehicle.daily_rate)}`;
+            return;
         }
-        sql += ' ORDER BY id';
-        const result = await pool.query(sql, params);
-        res.json(result.rows);
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: 'Could not load vehicles.' });
     }
-});
+    estimateBox.textContent = '';
+}
 
-// GET /api/vehicles/:id
-router.get('/:id', async (req, res) => {
-    try {
-        const result = await pool.query('SELECT * FROM vehicles WHERE id = $1', [req.params.id]);
-        if (result.rows.length === 0) return res.status(404).json({ error: 'Vehicle not found.' });
-        res.json(result.rows[0]);
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: 'Could not load vehicle.' });
-    }
-});
+document.getElementById('booking-start').addEventListener('change', updateEstimate);
+document.getElementById('booking-end').addEventListener('change', updateEstimate);
+document.getElementById('category-filter').addEventListener('change', loadVehicles);
 
-// POST /api/vehicles  (staff/admin only)
-router.post('/', requireAuth, requireRole('staff', 'admin'), async (req, res) => {
-    const { make, model, year, plate_number, category, daily_rate, image_url } = req.body;
-    if (!make || !model || !year || !plate_number || daily_rate === undefined || daily_rate === '') {
-        return res.status(400).json({ error: 'make, model, year, plate_number and daily_rate are required.' });
-    }
-    const problem = validateVehicle({ year, daily_rate, category });
-    if (problem) return res.status(400).json({ error: problem });
+document.getElementById('booking-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const errorBox = document.getElementById('booking-error');
+    errorBox.classList.add('hidden');
+    const fail = (msg) => { errorBox.textContent = msg; errorBox.classList.remove('hidden'); };
+
+    const start = document.getElementById('booking-start').value;
+    const end = document.getElementById('booking-end').value;
+    const dob = document.getElementById('d-dob').value;
+    const licenceExpiry = document.getElementById('d-licence-expiry').value;
+
+    if (end <= start) return fail('End date must be after the start date.');
+    const idProblem = checkIdentity(document.getElementById('d-id').value, dob);
+    if (idProblem) return fail(idProblem);
+    if (ageOn(dob, start) < MIN_AGE) return fail(`Drivers must be at least ${MIN_AGE} years old to rent a vehicle.`);
+    if (licenceExpiry < end) return fail("Your driver's licence expires before the end of this rental.");
+    if (!document.getElementById('booking-terms').checked) return fail('Please accept the rental terms.');
 
     try {
-        const result = await pool.query(
-            `INSERT INTO vehicles (make, model, year, plate_number, category, daily_rate, image_url)
-             VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
-            [String(make).trim(), String(model).trim(), Number(year), String(plate_number).trim(),
-             category || 'sedan', Number(daily_rate), image_url || null]
-        );
-        res.status(201).json(result.rows[0]);
+        await apiFetch('/auth/profile', {
+            method: 'PUT',
+            body: JSON.stringify({
+                date_of_birth: dob,
+                id_number: document.getElementById('d-id').value,
+                licence_number: document.getElementById('d-licence').value,
+                licence_expiry: licenceExpiry
+            })
+        });
+        await apiFetch('/bookings', {
+            method: 'POST',
+            body: JSON.stringify({
+                vehicle_id: selectedVehicle.id,
+                start_date: start,
+                end_date: end,
+                terms_accepted: true
+            })
+        });
+        closeModal();
+        window.location.href = 'my-bookings.html';
     } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: 'Could not add vehicle (is the plate number unique?).' });
+        fail(err.message);
     }
 });
 
-// PUT /api/vehicles/:id  (staff/admin only)
-router.put('/:id', requireAuth, requireRole('staff', 'admin'), async (req, res) => {
-    const { make, model, year, category, daily_rate, status, image_url } = req.body;
-    const problem = validateVehicle({ year, daily_rate, category }, { partial: true });
-    if (problem) return res.status(400).json({ error: problem });
-
-    try {
-        const result = await pool.query(
-            `UPDATE vehicles SET
-                make = COALESCE($1, make),
-                model = COALESCE($2, model),
-                year = COALESCE($3, year),
-                category = COALESCE($4, category),
-                daily_rate = COALESCE($5, daily_rate),
-                status = COALESCE($6, status),
-                image_url = COALESCE($7, image_url)
-             WHERE id = $8 RETURNING *`,
-            [make, model, year, category, daily_rate, status, image_url, req.params.id]
-        );
-        if (result.rows.length === 0) return res.status(404).json({ error: 'Vehicle not found.' });
-        res.json(result.rows[0]);
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: 'Could not update vehicle.' });
-    }
-});
-
-// DELETE /api/vehicles/:id  (admin only)
-router.delete('/:id', requireAuth, requireRole('admin'), async (req, res) => {
-    try {
-        await pool.query('DELETE FROM vehicles WHERE id = $1', [req.params.id]);
-        res.json({ message: 'Vehicle deleted.' });
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: 'Could not delete vehicle (it may have existing bookings).' });
-    }
-});
-
-module.exports = router;
+loadVehicles();

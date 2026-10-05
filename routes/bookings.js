@@ -2,6 +2,7 @@
 const express = require('express');
 const pool = require('../db');
 const { requireAuth, requireRole } = require('../middleware/auth');
+const { validateIdentity } = require('../utils/idCheck');
 
 const router = express.Router();
 
@@ -62,6 +63,10 @@ router.post('/', requireAuth, async (req, res) => {
             return res.status(400).json({
                 error: "Please complete your driver details (date of birth, ID/passport number, licence number and expiry) before booking."
             });
+        }
+        const idProblem = validateIdentity(driver.id_number, driver.dob);
+        if (idProblem) {
+            return res.status(400).json({ error: idProblem + ' Please correct your driver details.' });
         }
         if (ageOn(driver.dob, start_date) < MIN_AGE) {
             return res.status(400).json({ error: `Drivers must be at least ${MIN_AGE} years old to rent a vehicle.` });

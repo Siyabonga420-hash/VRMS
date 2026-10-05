@@ -5,7 +5,7 @@ if (currentUser) renderNav('admin');
 let allVehicles = [];
 
 function showSection(name) {
-    ['reports', 'vehicles', 'bookings', 'maintenance', 'broadcast'].forEach(s => {
+    ['reports', 'vehicles', 'bookings', 'customers', 'maintenance', 'broadcast'].forEach(s => {
         document.getElementById(`section-${s}`).classList.toggle('hidden', s !== name);
         document.getElementById(`tab-${s}`).classList.toggle('active', s === name);
     });
@@ -121,7 +121,7 @@ async function loadBookingsAdmin() {
         adminBookings = await apiFetch('/bookings');
         document.getElementById('admin-bookings-body').innerHTML = adminBookings.map(b => `
             <tr>
-                <td>${esc(b.customer_name)}</td>
+                <td><button class="linklike" onclick="viewDriver(${b.customer_id})">${esc(b.customer_name)}</button></td>
                 <td>${b.make} ${b.model}</td>
                 <td>${formatDate(b.start_date)} → ${formatDate(b.end_date)}</td>
                 <td>${formatCurrency(b.total_amount)}</td>
@@ -240,6 +240,83 @@ document.getElementById('return-form').addEventListener('submit', async (e) => {
     }
 });
 
+
+// ---------- CUSTOMERS & DRIVER DETAILS ----------
+let adminCustomers = [];
+
+function ageFrom(dobStr) {
+    if (!dobStr) return null;
+    const d = new Date(dobStr), n = new Date();
+    let age = n.getUTCFullYear() - d.getUTCFullYear();
+    const m = n.getUTCMonth() - d.getUTCMonth();
+    if (m < 0 || (m === 0 && n.getUTCDate() < d.getUTCDate())) age--;
+    return age;
+}
+
+function licenceStatus(expiry) {
+    if (!expiry) return '<span class="muted">Not provided</span>';
+    const today = new Date().toISOString().slice(0, 10);
+    return expiry < today
+        ? `${formatDate(expiry)} <span class="badge cancelled">Expired</span>`
+        : formatDate(expiry);
+}
+
+function renderCustomers() {
+    const q = (document.getElementById('customer-search').value || '').toLowerCase().trim();
+    const rows = adminCustomers.filter(c =>
+        !q || [c.full_name, c.email, c.phone, c.id_number, c.licence_number]
+            .some(v => String(v || '').toLowerCase().includes(q)));
+    document.getElementById('customers-body').innerHTML = rows.map(c => `
+        <tr>
+            <td><strong>${esc(c.full_name)}</strong><br><span class="muted">Joined ${formatDate(c.joined)}</span></td>
+            <td>${esc(c.email)}<br><span class="muted">${esc(c.phone || 'no phone')}</span></td>
+            <td>${c.id_number ? esc(c.id_number) : '<span class="muted">Not provided</span>'}</td>
+            <td>${c.licence_number ? esc(c.licence_number) : '<span class="muted">Not provided</span>'}<br>
+                <span class="muted">Expires: </span>${licenceStatus(c.licence_expiry)}</td>
+            <td>${c.bookings}</td>
+            <td><button class="btn small" onclick="viewDriver(${c.id})">View</button></td>
+        </tr>
+    `).join('') || '<tr><td colspan="6" class="muted">No customers found.</td></tr>';
+}
+
+async function loadCustomers() {
+    try {
+        adminCustomers = await apiFetch('/auth/customers');
+        renderCustomers();
+    } catch (err) {
+        document.getElementById('customers-body').innerHTML = `<tr><td colspan="6" class="error-msg">${err.message}</td></tr>`;
+    }
+}
+
+function viewDriver(customerId) {
+    const c = adminCustomers.find(x => x.id === customerId);
+    if (!c) return;
+    const age = ageFrom(c.date_of_birth);
+    const theirBookings = adminBookings.filter(b => b.customer_id === customerId);
+    document.getElementById('driver-name').textContent = c.full_name;
+    document.getElementById('driver-body').innerHTML = `
+        <p>
+            <strong>Email:</strong> ${esc(c.email)}<br>
+            <strong>Phone:</strong> ${esc(c.phone || 'not provided')}<br>
+            <strong>Date of birth:</strong> ${c.date_of_birth ? formatDate(c.date_of_birth) + ' (age ' + age + ')' : 'not provided'}<br>
+            <strong>ID / passport:</strong> ${esc(c.id_number || 'not provided')}<br>
+            <strong>Licence number:</strong> ${esc(c.licence_number || 'not provided')}<br>
+            <strong>Licence expiry:</strong> ${licenceStatus(c.licence_expiry)}<br>
+            <strong>Customer since:</strong> ${formatDate(c.joined)}
+        </p>
+        <h3>Bookings (${theirBookings.length})</h3>
+        ${theirBookings.map(b => `
+            <p style="margin:6px 0;">#${b.id} ${b.make} ${b.model}, ${formatDate(b.start_date)} → ${formatDate(b.end_date)}
+            <span class="badge ${b.status}">${b.status}</span></p>`).join('') || '<p class="muted">No bookings yet.</p>'}`;
+    document.getElementById('driver-modal').classList.remove('hidden');
+}
+
+function closeDriver() {
+    document.getElementById('driver-modal').classList.add('hidden');
+}
+
+document.getElementById('customer-search').addEventListener('input', renderCustomers);
+
 // ---------- MAINTENANCE ----------
 async function loadMaintenance() {
     try {
@@ -319,4 +396,5 @@ if (currentUser) {
     loadVehiclesAdmin();
     loadBookingsAdmin();
     loadMaintenance();
+    loadCustomers();
 }
